@@ -2,3 +2,4 @@ node_modules
 dist
 public/plugins
 src/plugins.json
+old
