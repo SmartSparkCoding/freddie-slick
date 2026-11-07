@@ -7,7 +7,8 @@
     "dev": "npm run plugins && vite",
     "build": "npm run plugins && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json"
+    "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --test \"plugins/**/*.test.ts\""
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

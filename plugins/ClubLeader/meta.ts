@@ -15,9 +15,29 @@ export const settings = {
   apiKey: {
     type: 'text',
     label: 'Club API key (optional)',
-    description: "With a key, the badge's tooltip also shows the club's name and status.",
+    description:
+      "With a key that has Read permission, the badge's tooltip shows the club's name, status, level, country and website, and club members can get a badge too.",
     default: '',
     maxLength: 200,
+  },
+  showMembers: {
+    type: 'boolean',
+    label: 'Badge club members too (needs an API key)',
+    default: false,
+  },
+  memberEmoji: {
+    type: 'text',
+    label: 'Member badge emoji',
+    default: '🧑‍💻',
+    maxLength: 100,
+  },
+  recheckDays: {
+    type: 'number',
+    label: 'Re-check each person every (days)',
+    description: 'How long an answer is remembered. Longer means fewer requests to the Club API.',
+    default: 7,
+    min: 1,
+    max: 30,
   },
   underline: {
     type: 'boolean',

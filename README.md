@@ -19,6 +19,7 @@ npm run plugins    # build plugins only
 npm run dev        # build plugins, then run the site locally
 npm run build      # build plugins and the site into dist/
 npm run typecheck  # type-check plugins and the site
+npm test           # run plugins/**/*.test.ts
 ```
 
 ## Adding a plugin

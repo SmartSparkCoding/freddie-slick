@@ -1,17 +1,22 @@
-// Badge (and optional underline) for Hack Club club leaders.
-// Looks each sender up once by Slack ID through the Club API, cached in Slick storage.
+// Badge (and optional underline) for Hack Club club leaders, and optionally members.
+//
+// Keeping Club API traffic low:
+// - answers, including failures, are cached in Slick storage (people for `recheckDays`, failures for an hour)
+// - only senders whose name is actually shown are looked up, never grouped follow-up messages
+// - requests go one at a time with a gap, under an hourly budget, and pause after errors
 
 import { SlickPlugin } from '$slick';
+import { describe, FAILED, HttpError, KeyRejected, leaderBySlack, person, type Lookup } from './api.ts';
+import { Blocked, Limiter } from './limiter.ts';
 import * as meta from './meta.ts';
 
-type LeaderInfo = { leader: boolean; club: string | null; status: string | null };
-type View = { emoji: string; emojiUrl: string | null; underline: boolean };
+type Emoji = { text: string; url: string | null };
+type View = { leader: Emoji; member: Emoji; underline: boolean; showMembers: boolean };
 type Message = { user?: string; bot_id?: string };
 
-const ENDPOINT = 'https://clubapi.hackclub.com/leader/slack';
 const USER_ID = /^[UW][A-Z0-9]+$/;
-const LEADER_TTL_MS = 24 * 60 * 60 * 1000;
-const NOT_LEADER_TTL_MS = 6 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FAILED_TTL_MS = 60 * 60 * 1000;
 const EMOJI_NAME = /^:?([a-z0-9_+'-]+):?$/i;
 
 const personId = (userId?: string, botId?: string) =>
@@ -31,22 +36,31 @@ export default class ClubLeader extends SlickPlugin<typeof meta.settings> {
   static readonly defaultEnabled = false;
   static readonly requiredAPIs = [] as const;
   static readonly settings = meta.settings;
-  static readonly liveSettings = ['badgeEmoji', 'underline', 'underlineColor'];
+  static readonly liveSettings = ['badgeEmoji', 'memberEmoji', 'showMembers', 'recheckDays', 'underline', 'underlineColor'];
 
-  private leaders = this.api.Cache<LeaderInfo | null>('club_leader', (info) =>
-    info?.leader ? LEADER_TTL_MS : NOT_LEADER_TTL_MS,
+  private cache = this.api.Cache<Lookup>('club_leader', (info) =>
+    info.failed ? FAILED_TTL_MS : Math.max(1, Number(this.config.recheckDays) || 7) * DAY_MS,
   );
-  private view = new this.api.Store<View>({ emoji: '', emojiUrl: null, underline: false });
+  private limiter = new Limiter({ gapMs: 400, perHour: 120, backoffMs: 15 * 60 * 1000, maxBackoffMs: 4 * 60 * 60 * 1000 });
+  private view = new this.api.Store<View>({
+    leader: { text: '♣', url: null },
+    member: { text: '', url: null },
+    underline: false,
+    showMembers: false,
+  });
   private emojiList: Promise<Record<string, string>> | null = null;
-  private warnedKey = false;
+  /** With a key: '/person' until it turns out the key can't read, then '/leader/slack'. */
+  private keyedEndpoint: 'person' | 'leader' = 'person';
+  private lastBlockLog = '';
 
   start() {
     this.onSettingsChange();
+    this.api.signal.addEventListener('abort', () => this.logTotal(), { once: true });
 
-    // Looks a user up once and re-renders when the answer arrives.
-    const useLeader = (userId: string | null) => {
-      const [info, setInfo] = React.useState<LeaderInfo | null>(() =>
-        userId ? (this.leaders.peek(this.key(userId)) ?? null) : null,
+    // Looks a user up once and re-renders when the answer arrives. Pass null to skip.
+    const useLookup = (userId: string | null) => {
+      const [info, setInfo] = React.useState<Lookup | null>(() =>
+        userId ? (this.cache.peek(this.key(userId)) ?? null) : null,
       );
       React.useEffect(() => {
         if (!userId) return;
@@ -60,23 +74,25 @@ export default class ClubLeader extends SlickPlugin<typeof meta.settings> {
     };
 
     const Badge = ({ userId }: { userId: string }) => {
-      const info = useLeader(userId);
-      const { emoji, emojiUrl } = this.view.use();
-      if (!info?.leader) return null;
-      const tip = info.club ? `Club leader: ${info.club}${info.status ? ` (${info.status})` : ''}` : 'Club leader';
+      const info = useLookup(userId);
+      const view = this.view.use();
+      const emoji = info?.leader ? view.leader : info?.member && view.showMembers ? view.member : null;
+      if (!info || !emoji) return null;
+      const tip = describe(info);
       return (
         <span className="slick-club-leader" title={tip} aria-label={tip} data-stringify-ignore="">
-          {emojiUrl ? <img className="slick-club-leader__img" src={emojiUrl} alt={`:${emoji}:`} /> : emoji || '♣'}
+          {emoji.url ? <img className="slick-club-leader__img" src={emoji.url} alt={emoji.text} /> : emoji.text}
         </span>
       );
     };
 
     // Underline: only a class on the name, so a hidden sender stays hidden.
+    // Looks nobody up unless underlining is on (the badge does the lookups).
     this.api.patchComponent<{ userId?: string; botId?: string; className?: string }>(
       'BaseMessageSender',
       (Original) => (props) => {
-        const info = useLeader(personId(props.userId, props.botId));
         const { underline } = this.view.use();
+        const info = useLookup(underline ? personId(props.userId, props.botId) : null);
         if (!underline || !info?.leader) return <Original {...props} />;
         return <Original {...props} className={[props.className, 'slick-club-leader-name'].filter(Boolean).join(' ')} />;
       },
@@ -131,15 +147,27 @@ export default class ClubLeader extends SlickPlugin<typeof meta.settings> {
         text-underline-offset: 3px;
       }
     `);
-    void this.resolveEmoji();
+    void this.refreshView();
+  }
+
+  private async refreshView() {
+    const [leader, member] = await Promise.all([
+      this.resolveEmoji(this.config.badgeEmoji, '♣'),
+      this.resolveEmoji(this.config.memberEmoji, '🧑‍💻'),
+    ]);
+    this.view.set({
+      leader,
+      member,
+      underline: this.config.underline === true,
+      showMembers: this.config.showMembers === true && !!this.config.apiKey.trim(),
+    });
   }
 
   // Custom emoji need their image URL; anything else is shown as typed.
-  private async resolveEmoji() {
-    const raw = this.config.badgeEmoji.trim();
-    const underline = this.config.underline === true;
+  private async resolveEmoji(setting: string, fallback: string): Promise<Emoji> {
+    const raw = setting.trim();
     const match = raw.match(EMOJI_NAME);
-    if (!match) return this.view.set({ emoji: raw, emojiUrl: null, underline });
+    if (!match) return { text: raw || fallback, url: null };
 
     const name = match[1].toLowerCase();
     try {
@@ -149,43 +177,80 @@ export default class ClubLeader extends SlickPlugin<typeof meta.settings> {
       const list = await this.emojiList;
       let url = list[name];
       for (let hops = 0; url?.startsWith('alias:') && hops < 5; hops++) url = list[url.slice(6)];
-      if (url?.startsWith('http')) return this.view.set({ emoji: name, emojiUrl: url, underline });
-      this.log(`no custom emoji called :${name}:, showing the default badge`);
+      if (url?.startsWith('http')) return { text: `:${name}:`, url };
+      this.log(`no custom emoji called :${name}:, showing ${fallback} instead`);
     } catch (error) {
       this.emojiList = null;
       this.log("could not load the workspace's emoji", error);
     }
-    this.view.set({ emoji: '', emojiUrl: null, underline });
+    return { text: fallback, url: null };
   }
 
+  // Answers depend on the key, so a new key starts fresh (a short hash, never the key itself).
   private key(userId: string) {
-    return `${this.config.apiKey ? 'k' : 'n'}:${userId}`;
+    const apiKey = this.config.apiKey.trim();
+    if (!apiKey) return `n:${userId}`;
+    let hash = 0;
+    for (const char of apiKey) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
+    return `k${(hash >>> 0).toString(36)}:${userId}`;
   }
 
-  private async lookUp(userId: string) {
+  private async lookUp(userId: string): Promise<Lookup | null> {
     try {
-      return await this.leaders.get(this.key(userId), () => this.fetchLeader(userId));
+      return await this.cache.get(this.key(userId), () => this.limiter.run(() => this.request(userId)));
     } catch (error) {
-      this.log(`could not check ${userId}`, error);
+      // Blocked: nothing was sent and nothing is cached, so a later render can try again.
+      if (error instanceof Blocked) {
+        if (this.lastBlockLog !== error.message) this.log(`holding off on Club API requests: ${error.message}`);
+        this.lastBlockLog = error.message;
+      } else {
+        this.log(`could not check ${userId}`, error);
+      }
       return null;
     }
   }
 
-  private async fetchLeader(userId: string): Promise<LeaderInfo> {
+  /** One lookup. Errors become a cached FAILED so they aren't retried on every render. */
+  private async request(userId: string): Promise<Lookup> {
     const apiKey = this.config.apiKey.trim();
-    const response = await this.api.fetch(`${ENDPOINT}?slackid=${encodeURIComponent(userId)}`, {
-      headers: apiKey ? { Authorization: apiKey } : {},
-    });
-    if (response.status === 401) {
-      if (!this.warnedKey) this.log('the Club API rejected your API key; check it in the plugin settings');
-      this.warnedKey = true;
-      throw new Error('invalid API key');
+    const fetch = this.api.fetch.bind(this.api);
+    try {
+      let result: Lookup;
+      if (!apiKey) {
+        result = await leaderBySlack(fetch, userId, '');
+      } else if (this.keyedEndpoint === 'person') {
+        try {
+          result = await person(fetch, userId, apiKey);
+        } catch (error) {
+          if (!(error instanceof KeyRejected)) throw error;
+          // The key may just lack Read permission; /leader/slack accepts any valid key.
+          result = await leaderBySlack(fetch, userId, apiKey);
+          this.keyedEndpoint = 'leader';
+          this.log("your API key can't use /person (it needs Read permission), so tooltips show the club name only");
+        }
+      } else {
+        result = await leaderBySlack(fetch, userId, apiKey);
+      }
+      this.limiter.recovered();
+      this.lastBlockLog = '';
+      if (this.limiter.total % 25 === 0) this.logTotal();
+      return result;
+    } catch (error) {
+      if (error instanceof KeyRejected) {
+        this.limiter.stop();
+        this.log('the Club API rejected your API key; fix it in the plugin settings (no more requests until then)');
+      } else if (error instanceof HttpError && error.status < 500 && error.status !== 429) {
+        // Something about this one person; no need to slow down for everyone.
+        this.log(`Club API said ${error.status} for ${userId}`);
+      } else {
+        this.limiter.pause();
+        this.log('Club API request failed, pausing requests for a while', error);
+      }
+      return FAILED;
     }
-    if (response.status < 200 || response.status >= 300) throw new Error(`HTTP ${response.status}`);
+  }
 
-    const data = JSON.parse(response.body || '{}') as { leader?: boolean; club_name?: unknown; club_status?: unknown };
-    const club = typeof data.club_name === 'string' ? data.club_name : null;
-    const status = typeof data.club_status === 'string' ? data.club_status : null;
-    return { leader: data.leader === true || !!club, club, status };
+  private logTotal() {
+    if (this.limiter.total) this.log(`${this.limiter.total} Club API requests since Slack started`);
   }
 }
