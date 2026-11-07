@@ -1,0 +1,22 @@
+{
+  "name": "slick-plugins",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "plugins": "node scripts/build-plugins.ts",
+    "dev": "npm run plugins && vite",
+    "build": "npm run plugins && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.6"
+  }
+}

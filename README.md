@@ -1,0 +1,43 @@
+# Slick plugins
+
+Freddie's plugins for [Slick](https://github.com/3kh0/slick), and the site that hosts them at
+slick.freddieyershon.co.uk.
+
+```
+plugins/<Name>/index.tsx   a plugin (TypeScript; index.ts works too)
+plugins/<Name>/meta.ts     its id, name, description and settings
+types/slick.d.ts           types for Slick's plugin API ($slick)
+scripts/build-plugins.ts   builds plugins into public/plugins/ and src/plugins.json
+src/App.svelte             the site, which lists whatever was built
+```
+
+## Commands
+
+```bash
+npm install
+npm run plugins    # build plugins only
+npm run dev        # build plugins, then run the site locally
+npm run build      # build plugins and the site into dist/
+npm run typecheck  # type-check plugins and the site
+```
+
+## Adding a plugin
+
+1. Make `plugins/MyPlugin/meta.ts` and `plugins/MyPlugin/index.tsx`. Copy `ClubLeader` to start.
+2. The folder name and the class's `static id` must match. Slick stores settings under that id,
+   so don't rename it once people have installed it.
+3. Run `npm run plugins`. It appears on the site and at `/plugins/MyPlugin.js`.
+4. To try it before deploying: in Slick, **Settings → Plugins → Install plugin…** and pick
+   `public/plugins/MyPlugin.js`.
+
+Notes:
+- Plugins can only import `$slick`, their own files and npm packages (which get bundled).
+- JSX uses Slack's own global `React`, so don't import React.
+- `types/slick.d.ts` covers part of Slick's API. Add to it when you need more, or use `this.api.raw`
+  untyped. The full types are in Slick's `src/shared/Plugin.ts` and `src/app/pluginManager.ts`.
+- Debug in Slack with Ctrl+Alt+I and filter the console for `[slick]`.
+
+## Deploying
+
+`vercel.json` builds with `npm run build` and serves `dist/`. Plugin files are cached for 5 minutes,
+and Slick checks installed links for updates every few hours.
