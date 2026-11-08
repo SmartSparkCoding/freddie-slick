@@ -15,8 +15,9 @@
   <header>
     <h1>Slick plugins</h1>
     <p>
-      Plugins for <a href="https://github.com/3kh0/slick">Slick</a>, made by Freddie. Copy a link and
-      install it from Slick, and it keeps itself up to date.
+      Plugins for <a href="https://github.com/3kh0/slick">Slick</a>, made by
+      <a href="https://freddieyershon.co.uk">Freddie</a>. Copy a link and install it from Slick, and it
+      keeps itself up to date.
     </p>
   </header>
 
@@ -44,19 +45,56 @@
   <section aria-labelledby="install">
     <h2 id="install">Install</h2>
     <ol>
-      <li>In Slack, open <b>Slick Settings → Plugins</b>.</li>
+      <li>In Slack, open <b>Preferences → Install plugins</b>.</li>
       <li>Paste the link and press <b>Install from URL</b>.</li>
       <li>Turn the plugin on. Its settings are under the cog.</li>
     </ol>
     <p class="muted">
       Plugins installed from a link update themselves every few hours. You can also download the
-      <code>.js</code> and pick it with <b>Install plugin…</b> instead. Using Slack in a browser? The
-      userscript works in Violentmonkey.
+      <code>.js</code> and choose it under <b>From a file</b> instead, but it won't update itself. Using
+      Slack in a browser? The userscript works in Violentmonkey.
+    </p>
+  </section>
+
+  <section aria-labelledby="source">
+    <h2 id="source">Source code</h2>
+    <p>
+      The code is open source under the MIT License, so anyone can read it, change it and build on it.
+      It's on GitHub at
+      <a href="https://github.com/hippogriff101/freddie-slick">hippogriff101/freddie-slick</a>.
+    </p>
+  </section>
+
+  <section aria-labelledby="local">
+    <h2 id="local">Run it yourself</h2>
+    <ol>
+      <li>
+        Clone and build it (you'll need <a href="https://nodejs.org">Node.js</a>):
+        <pre><code>git clone https://github.com/hippogriff101/freddie-slick.git
+cd freddie-slick
+npm install
+npm run plugins</code></pre>
+      </li>
+      <li>In Slack, open <b>Preferences → Install plugins</b>.</li>
+      <li>Under <b>From a file</b>, press <b>Choose File…</b> and pick a plugin from <code>freddie-slick/public/plugins/</code>, such as <code>ClubLeader.js</code>.</li>
+      <li>Turn the plugin on. Its settings are under the cog.</li>
+    </ol>
+    <p class="muted">
+      Plugins installed from a file don't update themselves. Pull the latest code, run
+      <code>npm run plugins</code> and choose the file again.
     </p>
   </section>
 
   <footer class="muted">
-    Not made by or affiliated with Slack or Salesforce.
+    <p>
+      <a href="https://github.com/3kh0/slick">Slick</a> is made and maintained by
+      <a href="https://github.com/3kh0">@3kh0</a>. These plugins aren't made by or affiliated with Slack
+      or Salesforce.
+    </p>
+    <p>
+      © 2026 Freddie Yershon. Released under the
+      <a href="https://github.com/hippogriff101/freddie-slick/blob/main/LICENSE">MIT License</a>.
+    </p>
   </footer>
 </main>
 
@@ -123,5 +161,16 @@
     padding: 2px 0;
   }
   .muted { color: var(--muted); font-size: 0.92rem; }
+  section > p { margin: 0 0 12px; }
+  pre {
+    margin: 8px 0 4px;
+    padding: 12px 14px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  pre code { background: none; padding: 0; line-height: 1.6; }
   footer { margin-top: 48px; border-top: 1px solid var(--line); padding-top: 16px; }
+  footer p { margin: 0 0 6px; }
 </style>

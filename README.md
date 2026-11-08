@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > This project was built with [Claude Code](https://claude.com/claude-code), using Claude Opus 5.5.
-> The original code, plugins and site were written by AI, with Freddie directing, and testing.
+> The original code, plugins and site were written by AI, with Freddie directing and testing.
 
 Freddie's plugins for [Slick](https://github.com/3kh0/slick), and the site that hosts them at
 slick.freddieyershon.co.uk.
@@ -32,8 +32,8 @@ npm test           # run plugins/**/*.test.ts
 2. The folder name and the class's `static id` must match. Slick stores settings under that id,
    so don't rename it once people have installed it.
 3. Run `npm run plugins`. It appears on the site and at `/plugins/MyPlugin.js`.
-4. To try it before deploying: in Slick, **Settings → Plugins → Install plugin…** and pick
-   `public/plugins/MyPlugin.js`.
+4. To try it before deploying: in Slack, open **Preferences → Install plugins**, and under
+   **From a file** choose `public/plugins/MyPlugin.js`.
 
 Notes:
 - Plugins can only import `$slick`, their own files and npm packages (which get bundled).
@@ -49,4 +49,8 @@ and Slick checks installed links for updates every few hours.
 
 ## Slick Credits
 
-Slick is a Slack Client mod created and maintained by [@3kh0](https://github.com/3kh0)! It is a really cool project that has grown into a tool used and collaborated on by many people. I suggest you check it out at [3kh0/slick](https://github.com/3kh0/slick).
+Slick is a Slack client mod created and maintained by [@3kh0](https://github.com/3kh0)! It is a really cool project that has grown into a tool used and collaborated on by many people. I suggest you check it out at [3kh0/slick](https://github.com/3kh0/slick).
+
+## License
+
+[MIT](LICENSE) © 2026 Freddie Yershon
