@@ -46,3 +46,7 @@ Notes:
 
 `vercel.json` builds with `npm run build` and serves `dist/`. Plugin files are cached for 5 minutes,
 and Slick checks installed links for updates every few hours.
+
+## Slick Credits
+
+Slick is a Slack Client mod created and maintained by [@3kh0](https://github.com/3kh0)! It is a really cool project that has grown into a tool used and collaborated on by many people. I suggest you check it out at [3kh0/slick](https://github.com/3kh0/slick).
