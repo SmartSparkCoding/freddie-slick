@@ -22,8 +22,11 @@ export default class MicGuard extends SlickPlugin<typeof meta.settings> {
   static readonly liveSettings = ['keepUnmuted', 'tellMe', 'debug'] as const;
 
   private readonly docs = new Map<Document, { dispose: () => void; refresh: () => void }>();
+  /** Our own copy of keepUnmuted, so a click counts at once even while Slick saves it. */
+  private keepOn = false;
 
   start(): void {
+    this.keepOn = this.config.keepUnmuted === true;
     this.hook(document);
     // A huddle can live in Slack's own pop-out window, which is another document.
     this.api.onDocument((doc) => this.hook(doc));
@@ -55,6 +58,7 @@ export default class MicGuard extends SlickPlugin<typeof meta.settings> {
   }
 
   onSettingsChange(): void {
+    this.keepOn = this.config.keepUnmuted === true;
     for (const entry of this.docs.values()) entry.refresh();
   }
 
@@ -68,12 +72,18 @@ export default class MicGuard extends SlickPlugin<typeof meta.settings> {
       doc,
       installMenuToggle(doc, {
         label: LABEL,
-        isOn: () => this.config.keepUnmuted !== false,
+        isOn: () => this.keepOn,
         onToggle: (next) => {
+          this.keepOn = next;
           this.log(next ? 'keeping you unmuted' : 'letting mutes stick');
-          void this.api.settings.set('keepUnmuted', next);
+          this.api.settings.set('keepUnmuted', next).catch((error: unknown) => this.log('could not save the setting', error));
+          // Show the change in every window's menus straight away.
+          for (const entry of this.docs.values()) entry.refresh();
         },
-        log: this.log,
+        // Menus open all over Slack, so only narrate them when asked to.
+        log: (...args) => {
+          if (this.config.debug === true) this.log(...args);
+        },
       }),
     );
   }
@@ -84,14 +94,14 @@ export default class MicGuard extends SlickPlugin<typeof meta.settings> {
     getState: (() => HuddleState | undefined) | undefined,
   ): Promise<void> {
     try {
-      if (this.api.signal.aborted || this.config.keepUnmuted === false) return;
+      if (this.api.signal.aborted || !this.keepOn) return;
       if (typeof dispatch !== 'function') return;
       const name = nameOf(attendeeId, typeof getState === 'function' ? getState() : undefined);
       if (this.config.debug === true) this.log(`${name} muted you; unmuting`);
 
       const result = await this.unmute();
-      if (this.api.signal.aborted || this.config.debug === true) this.log(`unmute result: ${result}`);
-      if (this.config.tellMe === false) return;
+      if (this.config.debug === true) this.log(`unmute result: ${result}`);
+      if (this.api.signal.aborted || this.config.tellMe === false) return;
       const message = toastFor(name, result);
       if (!message) return;
       const toast = await this.api.redux.waitForThunkCreator('enqueueHuddleToast');

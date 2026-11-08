@@ -12,7 +12,13 @@ const isElement = (value: unknown): value is Element =>
 
 const squish = (value: string | null | undefined): string => (value ?? '').replace(/\s+/g, ' ').trim();
 
-/** The video in the tile this click came from, or null if it is not a tile. */
+/** A live call stream, as opposed to a video file someone shared in a message. */
+export const isLive = (video: HTMLVideoElement): boolean => {
+  const stream = video.srcObject;
+  return !!stream && typeof stream === 'object' && 'getVideoTracks' in stream;
+};
+
+/** The video in the huddle tile this click came from, or null if it is not a tile. */
 export function videoFromTrigger(trigger: Element | null): HTMLVideoElement | null {
   let node = isElement(trigger) ? trigger : null;
   for (let depth = 0; node && depth < MAX_TILE_DEPTH; depth += 1, node = node.parentElement) {
@@ -20,7 +26,11 @@ export function videoFromTrigger(trigger: Element | null): HTMLVideoElement | nu
     // A wrapper around several participants is the grid, not a tile. Popping out
     // whichever video came first would be a coin flip, so give up instead.
     if (videos.length > 1) return null;
-    if (videos.length === 1) return videos[0] as HTMLVideoElement;
+    if (videos.length === 1) {
+      const video = videos[0] as HTMLVideoElement;
+      // Message attachments have <video> too; only huddle tiles carry a live stream.
+      return isLive(video) ? video : null;
+    }
   }
   return null;
 }

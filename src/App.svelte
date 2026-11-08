@@ -19,9 +19,8 @@
     <h1>Slick plugins</h1>
     <p>
       Plugins for <a href="https://github.com/3kh0/slick">Slick</a>, made by
-      <a href="https://freddieyershon.co.uk">Freddie</a> and
-      <a href="https://github.com/SmartSparkCoding">Jacob</a>. Copy a link and install it from Slick,
-      and it keeps itself up to date.
+      <a href="https://freddieyershon.co.uk">Freddie</a> and <a href="#contributors">contributors</a>.
+      Copy a link and install it from Slick, and it keeps itself up to date.
     </p>
   </header>
 
@@ -140,10 +139,8 @@ npm run plugins</code></pre>
     </ul>
     <p class="muted thanks">
       This project was also built with help from Claude Opus 5.5, using
-      <a href="https://claude.com/product/claude-code">Claude Code</a>. I also want to thank Jacob and
-      Wally for their help with this project. Mic Guard and Pop out Video were made with
-      <a href="https://github.com/techwithanirudh/gorkie">Gorkie</a>, an AI Slack bot, working from
-      Jacob's brief.
+      <a href="https://claude.com/product/claude-code">Claude Code</a>. Jacob also utilises <a href="https://github.com/techwithanirudh/gorkie">Gorkie</a>, an AI Slack bot for his development. 
+      I also want to thank Jacob and Wally for their help with this project.
     </p>
   </section>
 

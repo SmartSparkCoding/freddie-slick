@@ -3,17 +3,14 @@
 > [!NOTE]
 > This project was built with [Claude Code](https://claude.com/claude-code), using Claude Opus 5.5.
 > The original code, plugins and site were written by AI, with Freddie directing and testing.
->
-> Newer plugins are made with other AI agents too, under Jacob's supervision: **Mic Guard** and
-> **Pop out Video** with [Gorkie](https://github.com/techwithanirudh/gorkie), and further plugins
-> with [OpenCode](https://opencode.ai). See [Who made what](#who-made-what).
 
-Freddie's plugins for [Slick](https://github.com/3kh0/slick), and the site that hosts them at
-slick.freddieyershon.co.uk.
+Plugins for [Slick](https://github.com/3kh0/slick) by Freddie and contributors, and the site that hosts
+them at slick.freddieyershon.co.uk.
 
 ```
 plugins/<Name>/index.tsx   a plugin (TypeScript; index.ts works too)
 plugins/<Name>/meta.ts     its id, name, description and settings
+plugins/_shared/           code several plugins use (not a plugin itself)
 types/slick.d.ts           types for Slick's plugin API ($slick)
 scripts/build-plugins.ts   builds plugins into public/plugins/ and src/plugins.json
 src/App.svelte             the site, which lists whatever was built
@@ -41,7 +38,7 @@ npm test           # run plugins/**/*.test.ts
    **From a file** choose `public/plugins/MyPlugin.js`.
 
 Notes:
-- Plugins can only import `$slick`, their own files and npm packages (which get bundled).
+- Plugins can only import `$slick`, their own files, `plugins/_shared/` and npm packages (which get bundled).
 - JSX uses Slack's own global `React`, so don't import React.
 - `types/slick.d.ts` covers part of Slick's API. Add to it when you need more, or use `this.api.raw`
   untyped. The full types are in Slick's `src/shared/Plugin.ts` and `src/app/pluginManager.ts`.
@@ -57,11 +54,10 @@ and Slick checks installed links for updates every few hours.
 | Plugin | What it does | Made with | Supervised by |
 | --- | --- | --- | --- |
 | [Club Leader Badge](plugins/ClubLeader) | Badge next to Hack Club club leaders, from the Club API | Claude Code (Claude Opus 5.5) | [Freddie](https://freddieyershon.co.uk) |
-| [Mic Guard](plugins/MicGuard) | Unmutes you again when someone else mutes you in a huddle, and names them | Gorkie | [Jacob](https://github.com/SmartSparkCoding) |
-| [Pop out Video](plugins/PopOutVideo) | Adds "Pop out video" to a participant's huddle menu, in a window you can resize | Gorkie | [Jacob](https://github.com/SmartSparkCoding) |
+| [Mic Guard](plugins/MicGuard) | Unmutes you again when someone else mutes you in a huddle, and says who | [Gorkie](https://github.com/techwithanirudh/gorkie) | [Jacob](https://github.com/SmartSparkCoding) |
+| [Pop Out Video](plugins/PopOutVideo) | Opens a participant's huddle video in its own window you can resize | [Gorkie](https://github.com/techwithanirudh/gorkie) | [Jacob](https://github.com/SmartSparkCoding) |
 
-Whoever writes a plugin, a person directs it, tests it in Slack and decides what ships. Every plugin
-says what it does in `plugins/<Name>/meta.ts`, and its code is short enough to read before installing it.
+Every plugin is directed and tested in Slack by a person, who decides what ships.
 
 ## Contributing
 

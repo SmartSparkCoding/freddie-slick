@@ -1,95 +1,76 @@
-// A "Keep me unmuted" row inside the huddle's mic menu and its settings menu.
-// Slack owns both menus and renames their components between releases, so this
-// watches menus open, works out which one it is from the button that opened it
-// (falling back to the row labels) and clones one of Slack's own rows, which
-// keeps the styling without depending on any private component name.
+// A "Keep me unmuted" row in the huddle's own menus: its ⋯ menu, its mic menu and
+// its settings menu. Which menu is which comes from the button that opened it
+// (falling back to the row labels). Adding and highlighting the row is shared code.
 
-export type MenuKind = 'mic' | 'settings' | null;
+import { addRow, MENU, squish, watchMenus } from '../_shared/menus.ts';
+
+export type MenuKind = 'more' | 'mic' | 'settings' | null;
 
 const MIC_WORD = /mic(rophone)?\b|input device|audio input/i;
 const NOT_MIC = /camera|video|screen|output|speaker|headphone|volume/i;
-const SETTINGS_WORD = /settings|preferences|gear|cog|options/i;
+// Settings menus only count inside a huddle; "options" alone matches menus all over Slack.
+const HUDDLE_SETTINGS = /\b(huddle|call)\b.*\b(settings|preferences|options)\b|\b(settings|preferences|options)\b.*\b(huddle|call)\b/i;
+// The ⋯ button in a huddle's controls.
+const MORE = /\bmore\b|options|actions|overflow|ellipsis|kebab/i;
 // Host controls that must never be confused with the local toggle.
 const NOT_LOCAL = /everyone|others|participants?\b|huddle settings for/i;
+// Rows that act on someone else: a menu offering these is a participant menu, not yours.
+const SOMEONE_ELSE = /view (full )?profile|send (a )?message|remove from huddle|spotlight|pop out video/i;
+const MUTES_SOMEONE = /(^|\|\s*)mute microphone\b/i;
 
 /**
  * Which menu this is, from the button that opened it and, failing that, what it
- * offers. Null means leave it alone.
+ * offers. `inHuddle` says whether that button is part of a huddle. Null means leave it alone.
  */
-export function menuKind(triggerWords: string, itemLabels: readonly string[]): MenuKind {
+export function menuKind(triggerWords: string, itemLabels: readonly string[], inHuddle = false): MenuKind {
   const trigger = triggerWords.trim();
+  const labels = itemLabels.join(' | ');
+  if (SOMEONE_ELSE.test(labels)) return null;
   if (trigger && !NOT_LOCAL.test(trigger)) {
     if (MIC_WORD.test(trigger) && !NOT_MIC.test(trigger)) return 'mic';
-    if (SETTINGS_WORD.test(trigger)) return 'settings';
+    if (HUDDLE_SETTINGS.test(trigger)) return 'settings';
+    // Your own ⋯ menu never offers to mute a microphone; a participant's does.
+    if (inHuddle && MORE.test(trigger) && !MUTES_SOMEONE.test(labels)) return 'more';
   }
-  const labels = itemLabels.join(' | ');
-  if (MIC_WORD.test(labels) && !NOT_MIC.test(labels) && !NOT_LOCAL.test(labels)) return 'mic';
+  // A "Mute microphone" row mutes someone else, so a menu offering it isn't your mic menu.
+  if (MIC_WORD.test(labels) && !NOT_MIC.test(labels) && !NOT_LOCAL.test(labels) && !MUTES_SOMEONE.test(labels)) return 'mic';
   if (/\b(huddle|call) settings\b/i.test(labels)) return 'settings';
   return null;
 }
 
-const MENU = '[role="menu"]';
-const ITEM = '[role="menuitem"], [role="menuitemcheckbox"]';
-const MARK = 'data-slick-mic-guard';
-const CHECK =
-  '<path d="M4 10.5 8 14.5 16 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+/** Whether the control that opened a menu belongs to a huddle (or the whole window is one). */
+export function isInHuddle(trigger: Element | null, doc: Document): boolean {
+  if (/huddle/i.test(doc.defaultView?.name ?? '')) return true;
+  return !!trigger?.closest('[data-qa*="huddle" i], [class*="huddle" i], [aria-label*="huddle" i]');
+}
 
-const squish = (value: string | null | undefined): string => (value ?? '').replace(/\s+/g, ' ').trim();
-
-/** Words that describe the control that opened a menu, e.g. "Microphone" or "Huddle settings". */
+/** Words that describe the control that opened a menu, e.g. "Microphone" or "More actions". */
 export function describeTrigger(element: Element | null): string {
   const parts: string[] = [];
   for (let node = element, depth = 0; node && depth < 4; node = node.parentElement, depth += 1) {
-    for (const value of [
-      node.getAttribute('aria-label'),
-      node.getAttribute('title'),
-      node.getAttribute('data-qa'),
-      node.getAttribute('name'),
-    ]) {
+    for (const value of [node.getAttribute('aria-label'), node.getAttribute('title'), node.getAttribute('data-qa'), node.getAttribute('name')]) {
       if (value) parts.push(value);
     }
-    const own = squish([...node.childNodes].filter((child) => child.nodeType === 3).length ? node.textContent : '');
+    const own = squish([...node.childNodes].some((child) => child.nodeType === 3) ? node.textContent : '');
     if (own) parts.push(own);
     if (parts.length > 6) break;
   }
   return [...new Set(parts)].join(' ');
 }
 
+const MARK = 'data-slick-mic-guard';
+
 function labelsOf(menu: Element): string[] {
-  return [...menu.querySelectorAll(ITEM)]
-    .filter((item) => !item.hasAttribute(MARK))
+  return [...menu.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"]')]
+    .filter((item) => !item.closest(`[${MARK}]`))
     .map((item) => squish(item.textContent))
     .filter(Boolean);
 }
 
-function labelNode(row: Element): Element | null {
-  const whole = squish(row.textContent);
-  if (!whole) return null;
-  let match: Element | null = null;
-  for (const child of row.querySelectorAll('*')) {
-    if (child.children.length === 0 && squish(child.textContent) === whole) match = child;
-  }
-  return match;
-}
-
-/** Renames a cloned row without destroying the icon beside its text. */
-function rename(row: Element, label: string): void {
-  const leaf = labelNode(row);
-  if (leaf) {
-    leaf.textContent = label;
-    return;
-  }
-  // Some menus keep the text in a bare text node rather than a span; the last
-  // one with words in it is the label.
-  const view = row.ownerDocument.defaultView;
-  if (!view) return;
-  const walker = row.ownerDocument.createTreeWalker(row, view.NodeFilter.SHOW_TEXT);
-  let target: Text | null = null;
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    if (squish(node.textContent)) target = node as Text;
-  }
-  if (target) target.textContent = label;
-  else row.append(label);
+// The tick is shown or hidden by CSS from aria-checked (see plugins/_shared/menus.ts).
+function paint(item: HTMLElement, on: boolean): void {
+  item.setAttribute('aria-checked', on ? 'true' : 'false');
+  item.title = on ? 'If someone mutes you, Mic Guard unmutes you again' : 'Mutes from other people stick';
 }
 
 export type MenuToggleState = {
@@ -99,110 +80,44 @@ export type MenuToggleState = {
   log: (...args: unknown[]) => void;
 };
 
-function buildRow(sample: HTMLElement, label: string): HTMLElement {
-  const row = sample.cloneNode(true) as HTMLElement;
-  for (const attribute of ['data-qa', 'id', 'aria-controls', 'aria-haspopup', 'aria-expanded', 'aria-checked'])
-    row.removeAttribute(attribute);
-  row.setAttribute(MARK, '');
-  row.setAttribute('role', 'menuitemcheckbox');
-  row.setAttribute('tabindex', '-1');
-  row.setAttribute('aria-label', label);
-  for (const extra of row.querySelectorAll('[class*="shortcut" i], [class*="hotkey" i], [class*="check" i]'))
-    extra.remove();
-  const icon = row.querySelector('svg');
-  if (icon) {
-    // Keep the size attributes the cloned icon came with; Slack usually sizes by
-    // CSS, but a menu that sets width/height visibly collapses without them.
-    icon.setAttribute('viewBox', '0 0 20 20');
-    icon.innerHTML = CHECK;
-  }
-  rename(row, label);
-  return row;
-}
-
-function paint(row: HTMLElement, on: boolean): void {
-  row.setAttribute('aria-checked', on ? 'true' : 'false');
-  const icon = row.querySelector('svg');
-  if (icon) icon.style.opacity = on ? '1' : '0';
-  row.title = on ? 'Someone mutes you, you get unmuted again' : 'Mic Guard will let a mute stick';
-}
-
 /** Watches one document for huddle menus. */
-export function installMenuToggle(
-  doc: Document,
-  options: MenuToggleState,
-): { dispose: () => void; refresh: () => void } {
-  let trigger: Element | null = null;
-  let frame: number | null = null;
-
-  const remember = (event: Event) => {
-    const target = event.target;
-    if (!(target instanceof doc.defaultView!.Element)) return;
-    if (target.closest(MENU)) return;
-    trigger = target;
-  };
-
-  const inject = (menu: Element): void => {
-    const existing = menu.querySelector<HTMLElement>(`[${MARK}]`);
+export function installMenuToggle(doc: Document, options: MenuToggleState): { dispose: () => void; refresh: () => void } {
+  const watcher = watchMenus(doc, (menu) => {
+    const existing = menu.querySelector<HTMLElement>(`[${MARK}] [role="menuitemcheckbox"], [role="menuitemcheckbox"][${MARK}]`);
     if (existing) {
       paint(existing, options.isOn());
       return;
     }
-    const rows = [...menu.querySelectorAll<HTMLElement>(ITEM)].filter((item) => !item.hasAttribute(MARK));
-    const sample = rows[rows.length - 1];
-    if (!sample) return;
-    const kind = menuKind(describeTrigger(trigger), labelsOf(menu));
+    const trigger = watcher.trigger();
+    const kind = menuKind(describeTrigger(trigger), labelsOf(menu), isInHuddle(trigger, doc));
     if (!kind) {
-      if (options.isOn()) options.log('left a menu alone; rows were:', labelsOf(menu).slice(0, 8));
+      options.log('left a menu alone; rows were:', labelsOf(menu).slice(0, 8));
       return;
     }
-    const row = buildRow(sample, options.label);
-    paint(row, options.isOn());
-    const pick = (event: Event) => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const next = !options.isOn();
-      options.onToggle(next);
-      // React may re-render the row away; paint this copy straight away and let
-      // the next sweep re-add it if it disappears.
-      paint(row, next);
-    };
-    row.addEventListener('click', pick, true);
-    row.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') pick(event);
+    const item = addRow(menu, {
+      label: options.label,
+      mark: MARK,
+      role: 'menuitemcheckbox',
+      onPick: () => {
+        const next = !options.isOn();
+        options.onToggle(next);
+        // React may re-render the row away; paint this copy now and let the next sweep re-add it.
+        paint(item!, next);
+      },
     });
-    sample.parentElement?.append(row);
-    options.log(`added the toggle to the ${kind} menu`);
-  };
-
-  const sweep = (): void => {
-    frame = null;
-    for (const menu of doc.querySelectorAll(MENU)) inject(menu);
-  };
-
-  const schedule = (): void => {
-    if (frame !== null) return;
-    frame = doc.defaultView?.requestAnimationFrame(sweep) ?? null;
-    if (frame === null) sweep();
-  };
-
-  const observer = new doc.defaultView!.MutationObserver(schedule);
-  observer.observe(doc.documentElement, { childList: true, subtree: true });
-  doc.addEventListener('pointerdown', remember, true);
-  doc.addEventListener('click', remember, true);
-  doc.addEventListener('keydown', remember, true);
+    if (!item) return;
+    paint(item, options.isOn());
+    options.log(`added the toggle to the huddle's ${kind} menu`);
+  });
 
   return {
     refresh() {
-      for (const row of doc.querySelectorAll<HTMLElement>(`[${MARK}]`)) paint(row, options.isOn());
+      for (const item of doc.querySelectorAll<HTMLElement>(`[${MARK}] [role="menuitemcheckbox"], [role="menuitemcheckbox"][${MARK}]`))
+        paint(item, options.isOn());
     },
     dispose() {
-      observer.disconnect();
-      if (frame !== null) doc.defaultView?.cancelAnimationFrame(frame);
-      doc.removeEventListener('pointerdown', remember, true);
-      doc.removeEventListener('click', remember, true);
-      doc.removeEventListener('keydown', remember, true);
-      for (const row of doc.querySelectorAll(`[${MARK}]`)) row.remove();
+      watcher.dispose();
+      for (const row of doc.querySelectorAll(`${MENU} [${MARK}]`)) row.remove();
     },
   };
 }

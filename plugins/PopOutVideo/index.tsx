@@ -2,7 +2,7 @@ import { SlickPlugin } from '$slick';
 import { installMenuHook } from './menu.ts';
 import * as meta from './meta.ts';
 import { openPopOut, type PopOutHandle, type PopOutSize } from './popout.ts';
-import { nameFor } from './tiles.ts';
+import { isLive, nameFor } from './tiles.ts';
 
 const LABEL = 'Pop out video';
 
@@ -48,15 +48,17 @@ export default class PopOutVideo extends SlickPlugin<typeof meta.settings> {
   }
 
   private popOut(video: HTMLVideoElement): void {
-    const name = nameFor(video);
-    const existing = this.windows.get(name);
-    if (existing && !existing.closed) {
-      existing.focus();
+    // Nothing to mirror if the tile has no stream yet (camera off, or still connecting).
+    if (!isLive(video)) {
+      this.log('no video stream on that tile yet');
       return;
     }
-    // Nothing to mirror if the tile has no stream yet (camera off, or still connecting).
-    if (!video.srcObject) {
-      this.log('no video stream on that tile yet');
+    const name = nameFor(video);
+    // Keyed by stream, not name: two people can share a name, or both fall back to "Participant".
+    const key = (video.srcObject as MediaStream).id || name;
+    const existing = this.windows.get(key);
+    if (existing && !existing.closed) {
+      existing.focus();
       return;
     }
     const handle = openPopOut(video, {
@@ -64,12 +66,12 @@ export default class PopOutVideo extends SlickPlugin<typeof meta.settings> {
       size: this.config.size as PopOutSize,
       muted: this.config.muted !== false,
       closeWhenVideoEnds: this.config.closeWhenVideoEnds === true,
-      onClose: () => this.windows.delete(name),
+      onClose: () => this.windows.delete(key),
     });
     if (!handle) {
       this.log('the pop-out window was blocked; allow pop-ups for Slack');
       return;
     }
-    this.windows.set(name, handle);
+    this.windows.set(key, handle);
   }
 }

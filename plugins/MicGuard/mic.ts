@@ -87,6 +87,8 @@ export function findMicButton(doc: Document): HTMLElement | null {
   for (const element of doc.querySelectorAll<HTMLElement>(BUTTONS)) {
     if (!element.isConnected || element.getClientRects().length === 0 || element.closest('[hidden], [aria-hidden="true"]')) continue;
     const score = toggleScore(element);
+    if (score > bestScore) {
+      best = element;
       bestScore = score;
     }
   }

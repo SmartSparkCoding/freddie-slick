@@ -43,3 +43,24 @@ test('leaves unrelated menus and host controls alone', () => {
   assert.equal(menuKind('', ['Camera', 'Speaker', 'Leave huddle']), null);
   assert.equal(menuKind('', []), null);
 });
+
+test("doesn't add the toggle to a participant's own menu", () => {
+  assert.equal(menuKind('', ['Mute microphone', 'View profile']), null);
+  assert.equal(menuKind('More actions', ['Mute microphone', 'Send message']), null);
+});
+
+test("spots the huddle's ⋯ menu, but only inside a huddle", () => {
+  assert.equal(menuKind('More options', ['Share screen', 'Start a recording'], true), 'more');
+  assert.equal(menuKind('More actions', ['Copy link', 'Mark unread'], false), null);
+});
+
+test("leaves a participant's ⋯ menu alone", () => {
+  assert.equal(menuKind('More actions', ['Mute microphone'], true), null);
+  assert.equal(menuKind('More actions', ['Mute microphone', 'Pop out video'], true), null);
+});
+
+test('only counts settings menus that belong to a huddle', () => {
+  assert.equal(menuKind('Channel options', ['Copy link', 'Leave channel']), null);
+  assert.equal(menuKind('Preferences', ['Notifications', 'Sidebar']), null);
+  assert.equal(menuKind('Huddle options', []), 'settings');
+});

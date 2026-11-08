@@ -29,7 +29,11 @@ const MIN_HEIGHT = 180;
 // Cameras drop their stream briefly while renegotiating, so a missing stream
 // only closes the window once it has stayed missing.
 const EMPTY_GRACE = 3000;
-const TICK = 250;
+// Stream changes arrive as events; this slower check only catches the window being
+// closed and the tile disappearing, which fire no event here.
+const TICK = 1000;
+// Controls hide after this long without the mouse moving, like a video player.
+const IDLE_MS = 2500;
 
 const CSS = `
   :root { color-scheme: dark; }
@@ -41,9 +45,11 @@ const CSS = `
   .bar {
     position: absolute; inset: auto 0 0 0; display: flex; align-items: center; gap: 8px;
     padding: 10px 12px; background: linear-gradient(to top, #000000d9, #0000);
-    opacity: 0; transition: opacity 120ms ease;
+    opacity: 0; transition: opacity 160ms ease; pointer-events: none;
   }
-  body:hover .bar, .bar:focus-within { opacity: 1; }
+  /* Shown by script on mouse movement; :hover alone is unreliable in a window that isn't focused yet. */
+  .bar.shown, .bar:hover, .bar:focus-within { opacity: 1; pointer-events: auto; }
+  body.idle, body.idle video { cursor: none; }
   .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .spacer { flex: 1; }
   button {
@@ -111,14 +117,44 @@ export function openPopOut(source: HTMLVideoElement, options: PopOutOptions): Po
   video.muted = options.muted;
   showAudio();
 
+  const bar = doc.querySelector<HTMLElement>('.bar');
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const wake = () => {
+    bar?.classList.add('shown');
+    doc.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      bar?.classList.remove('shown');
+      doc.body.classList.add('idle');
+    }, IDLE_MS);
+  };
+  for (const type of ['mousemove', 'pointerdown', 'keydown', 'focus'] as const) popup.addEventListener(type, wake);
+  // Show the controls when it first opens, so people know they're there.
+  wake();
+
+  // Keep a reference so the listeners come off the same stream they went on.
+  let watched: MediaStream | null = null;
+  let update = (): void => {};
+  const onTracks = () => update();
   const mirror = () => {
-    const stream = source.srcObject;
+    // Not instanceof: the tile may live in Slack's huddle window, whose MediaStream is a different class.
+    const object = source.srcObject;
+    const stream = object && typeof object === 'object' && 'getVideoTracks' in object ? (object as MediaStream) : null;
+    if (stream !== watched) {
+      watched?.removeEventListener('addtrack', onTracks);
+      watched?.removeEventListener('removetrack', onTracks);
+      stream?.addEventListener('addtrack', onTracks);
+      stream?.addEventListener('removetrack', onTracks);
+      watched = stream;
+    }
     if (stream === video.srcObject) return;
     video.srcObject = stream;
     void video.play().catch(() => {});
   };
-  mirror();
   video.addEventListener('loadedmetadata', () => void video.play().catch(() => {}));
+  // Slack swaps the tile's stream when a camera reconnects; follow it straight away.
+  const sourceEvents = ['loadedmetadata', 'emptied', 'play'] as const;
+  for (const type of sourceEvents) source.addEventListener(type, onTracks);
 
   const audio_ = () => {
     video.muted = !video.muted;
@@ -139,34 +175,43 @@ export function openPopOut(source: HTMLVideoElement, options: PopOutOptions): Po
     else if (event.key === 'f' || event.key === 'F') fullscreen();
   });
 
-  let emptyFor = 0;
+  let emptySince: number | null = null;
   let stopped = false;
   const stop = () => {
     if (stopped) return;
     stopped = true;
     clearInterval(timer);
+    clearTimeout(idleTimer);
+    for (const type of sourceEvents) source.removeEventListener(type, onTracks);
+    watched?.removeEventListener('addtrack', onTracks);
+    watched?.removeEventListener('removetrack', onTracks);
+    watched = null;
     video.srcObject = null;
     options.onClose();
   };
 
-  const timer = setInterval(() => {
+  // Assigned before any event can call it: stream and video events only fire after this function returns.
+  update = (): void => {
+    if (stopped) return;
     if (popup.closed) {
       stop();
       return;
     }
-    const stream = source.srcObject;
     mirror();
-    note.hidden = Boolean(stream);
-    if (stream && source.isConnected) {
-      emptyFor = 0;
+    const live = !!watched && source.isConnected && watched.getVideoTracks().some((track) => track.readyState === 'live' && !track.muted);
+    note.hidden = live;
+    if (live) {
+      emptySince = null;
       return;
     }
     if (!options.closeWhenVideoEnds) return;
-    emptyFor += TICK;
-    if (emptyFor >= EMPTY_GRACE) popup.close();
-  }, TICK);
+    emptySince ??= Date.now();
+    if (Date.now() - emptySince >= EMPTY_GRACE) popup.close();
+  };
 
-  mirror();
+  popup.addEventListener('pagehide', stop);
+  const timer = setInterval(update, TICK);
+  update();
   popup.focus();
   return {
     get closed() {

@@ -22,6 +22,12 @@ export type Contributor = {
   role?: string;
 };
 
+// Friendlier names for logins, used wherever the person shows up.
+const LABELS: Record<string, string> = {
+  hippogriff101: 'Freddie',
+  smartsparkcoding: 'Jacob',
+};
+
 // GitHub only lists people whose commits are on the default branch, so anyone
 // whose work is still in a fork or an open pull request would vanish from the
 // site. They are listed here by hand until their commits land.
@@ -31,8 +37,7 @@ const EXTRA: Contributor[] = [
     avatar: 'https://avatars.githubusercontent.com/u/186386267?v=4&s=96',
     url: 'https://github.com/SmartSparkCoding',
     contributions: 0,
-    label: 'Jacob',
-    role: 'Mic Guard and Pop out Video',
+    role: 'Mic Guard and Pop Out Video',
   },
 ];
 
@@ -60,6 +65,7 @@ async function main() {
   const known = new Set(contributors.map((person) => person.login.toLowerCase()));
   const people = [...contributors, ...EXTRA.filter((person) => !known.has(person.login.toLowerCase()))];
   people.sort((a, b) => b.contributions - a.contributions);
+  for (const person of people) person.label ??= LABELS[person.login.toLowerCase()];
 
   await writeFile(OUT, JSON.stringify(people, null, 2) + '\n');
   console.log(`[contributors] ${people.length} contributor${people.length === 1 ? '' : 's'}`);

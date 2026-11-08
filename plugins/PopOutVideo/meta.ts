@@ -3,7 +3,7 @@ import type { PluginCategory, SettingsSchema } from '$slick';
 export const id = 'PopOutVideo';
 export const pluginName = 'Pop Out Video';
 export const description =
-  'Adds “Pop out video” to a participant’s menu in a huddle, opening their video in a window you can resize as far as the screen allows';
+  "Adds Pop out video to a participant's menu in a huddle, opening their video in a window you can resize";
 export const category: PluginCategory = 'sounds';
 export const defaultEnabled = false;
 
@@ -23,7 +23,7 @@ export const settings = {
   muted: {
     type: 'boolean',
     label: 'Mute the pop-out',
-    description: 'Slack keeps playing the huddle audio, so a second unmuted copy of the participant echoes.',
+    description: 'Slack already plays the huddle audio, so an unmuted pop-out would echo.',
     default: true,
   },
   closeWhenVideoEnds: {
