@@ -19,8 +19,9 @@
     <h1>Slick plugins</h1>
     <p>
       Plugins for <a href="https://github.com/3kh0/slick">Slick</a>, made by
-      <a href="https://freddieyershon.co.uk">Freddie</a>. Copy a link and install it from Slick, and it
-      keeps itself up to date.
+      <a href="https://freddieyershon.co.uk">Freddie</a> and
+      <a href="https://github.com/SmartSparkCoding">Jacob</a>. Copy a link and install it from Slick,
+      and it keeps itself up to date.
     </p>
   </header>
 
@@ -119,9 +120,14 @@ npm run plugins</code></pre>
     <ul class="people">
       {#each contributors as person (person.login)}
         <li>
-          <a href={person.url} title="{person.login}: {person.contributions} commit{person.contributions === 1 ? '' : 's'}">
+          <a
+            href={person.url}
+            title={person.role
+              ? `${person.login}: ${person.role}`
+              : `${person.login}: ${person.contributions} commit${person.contributions === 1 ? '' : 's'}`}
+          >
             <img src={person.avatar} alt="" width="48" height="48" loading="lazy" />
-            <span>{person.login}</span>
+            <span>{person.label ?? person.login}</span>
           </a>
         </li>
       {/each}
@@ -232,7 +238,7 @@ npm run plugins</code></pre>
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    width: 72px;
+    width: 88px;
     font-size: 0.8rem;
     color: var(--muted);
     text-decoration: none;

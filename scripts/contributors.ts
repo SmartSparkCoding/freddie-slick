@@ -11,7 +11,30 @@ const REPO = 'hippogriff101/freddie-slick';
 const OUT = path.join(import.meta.dirname, '..', 'src', 'contributors.json');
 
 type GitHubContributor = { login: string; avatar_url: string; html_url: string; contributions: number; type: string };
-export type Contributor = { login: string; avatar: string; url: string; contributions: number };
+export type Contributor = {
+  login: string;
+  avatar: string;
+  url: string;
+  contributions: number;
+  /** Shown instead of the login, when the login is too long to fit. */
+  label?: string;
+  /** What they worked on, for people GitHub cannot count commits for (yet). */
+  role?: string;
+};
+
+// GitHub only lists people whose commits are on the default branch, so anyone
+// whose work is still in a fork or an open pull request would vanish from the
+// site. They are listed here by hand until their commits land.
+const EXTRA: Contributor[] = [
+  {
+    login: 'SmartSparkCoding',
+    avatar: 'https://avatars.githubusercontent.com/u/186386267?v=4&s=96',
+    url: 'https://github.com/SmartSparkCoding',
+    contributions: 0,
+    label: 'Jacob',
+    role: 'Mic Guard and Pop out Video',
+  },
+];
 
 async function main() {
   const headers: Record<string, string> = {
@@ -33,8 +56,13 @@ async function main() {
       contributions: person.contributions,
     }));
 
-  await writeFile(OUT, JSON.stringify(contributors, null, 2) + '\n');
-  console.log(`[contributors] ${contributors.length} contributor${contributors.length === 1 ? '' : 's'}`);
+  // GitHub's numbers win when somebody is in both lists.
+  const known = new Set(contributors.map((person) => person.login.toLowerCase()));
+  const people = [...contributors, ...EXTRA.filter((person) => !known.has(person.login.toLowerCase()))];
+  people.sort((a, b) => b.contributions - a.contributions);
+
+  await writeFile(OUT, JSON.stringify(people, null, 2) + '\n');
+  console.log(`[contributors] ${people.length} contributor${people.length === 1 ? '' : 's'}`);
 }
 
 try {
