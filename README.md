@@ -1,5 +1,9 @@
 # Slick plugins
 
+> [!NOTE]
+> This project was built with [Claude Code](https://claude.com/claude-code), using Claude Opus 5.5.
+> The code, plugins and site were written by AI, with Freddie directing, helping and testing.
+
 Freddie's plugins for [Slick](https://github.com/3kh0/slick), and the site that hosts them at
 slick.freddieyershon.co.uk.
 
