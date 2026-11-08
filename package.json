@@ -4,11 +4,12 @@
   "type": "module",
   "scripts": {
     "plugins": "node scripts/build-plugins.ts",
-    "dev": "npm run plugins && vite",
-    "build": "npm run plugins && vite build",
+    "dev": "npm run plugins && npm run contributors && vite",
+    "build": "npm run plugins && npm run contributors && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --test \"plugins/**/*.test.ts\""
+    "test": "node --test \"plugins/**/*.test.ts\"",
+    "contributors": "node scripts/contributors.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

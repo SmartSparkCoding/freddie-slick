@@ -20,6 +20,7 @@ src/App.svelte             the site, which lists whatever was built
 ```bash
 npm install
 npm run plugins    # build plugins only
+npm run contributors # refresh src/contributors.json from GitHub
 npm run dev        # build plugins, then run the site locally
 npm run build      # build plugins and the site into dist/
 npm run typecheck  # type-check plugins and the site
@@ -46,6 +47,10 @@ Notes:
 
 `vercel.json` builds with `npm run build` and serves `dist/`. Plugin files are cached for 5 minutes,
 and Slick checks installed links for updates every few hours.
+
+## Contributing
+
+Ideas, bug reports and new plugins are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Slick Credits
 

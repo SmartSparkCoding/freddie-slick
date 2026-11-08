@@ -1,5 +1,8 @@
 <script lang="ts">
   import plugins from './plugins.json';
+  import contributors from './contributors.json';
+
+  const REPO = 'https://github.com/hippogriff101/freddie-slick';
 
   const base = typeof location === 'undefined' ? '' : location.origin;
   let copied = $state<string | null>(null);
@@ -56,6 +59,16 @@
     </p>
   </section>
 
+  <section aria-labelledby="why">
+    <h2 id="why">Why get plugins here</h2>
+    <ul class="reasons">
+      <li><b>They keep themselves updated.</b> Install from a link once, and fixes reach you within a few hours, or right away with <b>Check now</b>.</li>
+      <li><b>Made for the Hack Club Slack.</b> Small plugins for things Hack Clubbers actually run into, like spotting club leaders.</li>
+      <li><b>Easy on shared services.</b> Plugins cache what they look up and limit their own requests, so they don't hammer APIs like the Club API.</li>
+      <li><b>Open and readable.</b> Every plugin is short, commented TypeScript under the MIT License, so you can check what it does before installing.</li>
+    </ul>
+  </section>
+
   <section aria-labelledby="source">
     <h2 id="source">Source code</h2>
     <p>
@@ -82,6 +95,47 @@ npm run plugins</code></pre>
     <p class="muted">
       Plugins installed from a file don't update themselves. Pull the latest code, run
       <code>npm run plugins</code> and choose the file again.
+    </p>
+  </section>
+
+  <section aria-labelledby="contribute">
+    <h2 id="contribute">Contribute</h2>
+    <p>Got an idea, found a bug, or want to add your own plugin? Help is very welcome.</p>
+    <ol>
+      <li><a href="{REPO}/fork">Fork the repo</a> and make a branch.</li>
+      <li>Add or change a plugin in <code>plugins/&lt;Name&gt;/</code>. Copying <code>ClubLeader</code> is a good start.</li>
+      <li>Run <code>npm test</code> and <code>npm run typecheck</code>, and try it in Slack from a file.</li>
+      <li><a href="{REPO}/compare">Open a pull request</a> saying what it does and how you tested it.</li>
+    </ol>
+    <p class="muted">
+      Not a coder? <a href="{REPO}/issues/new">Open an issue</a> with your idea or bug. The full guide is
+      in <a href="{REPO}/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.
+    </p>
+  </section>
+
+  <section aria-labelledby="contributors">
+    <h2 id="contributors">Contributors</h2>
+    <p class="muted">Thanks to everyone who's helped build these plugins.</p>
+    <ul class="people">
+      {#each contributors as person (person.login)}
+        <li>
+          <a href={person.url} title="{person.login}: {person.contributions} commit{person.contributions === 1 ? '' : 's'}">
+            <img src={person.avatar} alt="" width="48" height="48" loading="lazy" />
+            <span>{person.login}</span>
+          </a>
+        </li>
+      {/each}
+      <li>
+        <a href="{REPO}/blob/main/CONTRIBUTING.md" class="you">
+          <span class="plus" aria-hidden="true">+</span>
+          <span>You?</span>
+        </a>
+      </li>
+    </ul>
+    <p class="muted thanks">
+      This project was also built with help from Claude Opus 5.5, using
+      <a href="https://claude.com/product/claude-code">Claude Code</a>. I also want to thank Jacob and
+      Wally for their help with this project.
     </p>
   </section>
 
@@ -161,6 +215,48 @@ npm run plugins</code></pre>
     padding: 2px 0;
   }
   .muted { color: var(--muted); font-size: 0.92rem; }
+  ul.reasons { gap: 8px; }
+  ul.reasons li {
+    display: block;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    color: var(--muted);
+  }
+  ul.reasons b { color: var(--fg); }
+  ul.people { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+  ul.people li { display: block; padding: 0; background: none; border: 0; }
+  ul.people a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 72px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: none;
+    text-align: center;
+  }
+  ul.people a:hover { color: var(--fg); }
+  ul.people a:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; border-radius: 8px; }
+  ul.people span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  ul.people img,
+  .plus {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    background: var(--card);
+  }
+  ul.people a:hover img { border-color: var(--accent); }
+  .plus {
+    display: grid;
+    place-items: center;
+    border-style: dashed;
+    font-size: 1.4rem;
+    color: var(--muted);
+  }
+  .you:hover .plus { border-color: var(--accent); color: var(--accent); }
+  section > p.thanks { margin-top: 20px; }
   section > p { margin: 0 0 12px; }
   pre {
     margin: 8px 0 4px;
