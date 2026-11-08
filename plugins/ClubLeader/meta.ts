@@ -16,7 +16,7 @@ export const settings = {
     type: 'text',
     label: 'Club API key (optional)',
     description:
-      "With a key that has Read permission, the badge's tooltip shows the club's name, status, level, country and website, and club members can get a badge too.",
+      "With a key that has Read permission, the badge's tooltip shows the club's name, status and country, and club members can get a badge too.",
     default: '',
     maxLength: 200,
   },

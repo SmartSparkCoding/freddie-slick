@@ -37,9 +37,9 @@ test('person: leader with club details', async () => {
     member: false,
     club: 'Example HS',
     status: 'Active',
-    details: { level: '2', country: 'UK', website: 'https://ex.club' },
+    details: { country: 'UK' },
   });
-  assert.equal(describe(info), 'Club leader: Example HS (Active)\nLevel 2 · UK\nhttps://ex.club');
+  assert.equal(describe(info), 'Club leader: Example HS (Active)\nUK');
 });
 
 test('person: member only', async () => {

@@ -2,7 +2,7 @@
 
 export const BASE = 'https://clubapi.hackclub.com';
 
-export type ClubDetails = { level: string | null; country: string | null; website: string | null };
+export type ClubDetails = { country: string | null };
 
 export type Lookup = {
   leader: boolean;
@@ -31,7 +31,6 @@ export class HttpError extends Error {
 }
 
 const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null);
-const textish = (value: unknown) => (typeof value === 'number' ? String(value) : text(value));
 
 function parse(response: Response): Record<string, any> {
   if (response.status === 401) throw new KeyRejected();
@@ -65,9 +64,7 @@ export async function person(fetch: Fetch, userId: string, apiKey: string): Prom
     status: text(leader?.club_status) ?? text(fields?.status) ?? text(fields?.club_status),
     details: fields
       ? {
-          level: textish(fields.level ?? fields.club_level),
           country: text(fields.venue_addr_country ?? fields.country),
-          website: text(fields.club_website ?? fields.website),
         }
       : null,
   };
@@ -78,9 +75,6 @@ export function describe(info: Lookup): string {
   const role = info.leader ? 'Club leader' : 'Club member';
   if (!info.club) return role;
   const lines = [`${role}: ${info.club}${info.status ? ` (${info.status})` : ''}`];
-  const d = info.details;
-  const extra = [d?.level && `Level ${d.level}`, d?.country].filter(Boolean).join(' · ');
-  if (extra) lines.push(extra);
-  if (d?.website) lines.push(d.website);
+  if (info.details?.country) lines.push(info.details.country);
   return lines.join('\n');
 }
