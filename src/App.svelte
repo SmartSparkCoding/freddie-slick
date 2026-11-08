@@ -135,7 +135,9 @@ npm run plugins</code></pre>
     <p class="muted thanks">
       This project was also built with help from Claude Opus 5.5, using
       <a href="https://claude.com/product/claude-code">Claude Code</a>. I also want to thank Jacob and
-      Wally for their help with this project.
+      Wally for their help with this project. Mic Guard and Pop out Video were made with
+      <a href="https://github.com/techwithanirudh/gorkie">Gorkie</a>, an AI Slack bot, working from
+      Jacob's brief.
     </p>
   </section>
 
